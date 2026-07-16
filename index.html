@@ -2,15 +2,38 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>愿望采购清单</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>月度计划采购清单（文件夹归档版）</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,PingFang SC,Microsoft YaHei;}
 body{background:#f7f7f7;padding-bottom:90px;}
 
-.header{background:#ff9ebb;color:#fff;padding:14px;text-align:center;font-size:18px;}
+/* 修复头部遮挡：Grid三栏布局，取消绝对定位 */
+.header{
+    background:#ff9ebb;color:#fff;padding:12px 14px;
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;gap:8px;
+}
+.header-title{text-align:center;font-size:18px;grid-column:2;}
+.header-operate{grid-column:3;display:flex;gap:6px;justify-self:end;}
+.switch-user-btn,.logout-btn{
+    background:#fff;color:#ff7aa8;border:none;
+    padding:3px 7px;border-radius:6px;font-size:12px;cursor:pointer;
+}
 
-/* 搜索栏放到标题下方，取消全局置顶 */
+/* 登录弹窗 */
+.login-mask{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.login-box{background:#fff;width:85%;max-width:360px;padding:26px;border-radius:14px;text-align:center;}
+.login-box h3{margin-bottom:16px;color:#333;}
+.privacy-tip{font-size:12px;color:#f25c5c;margin-bottom:10px;line-height:1.4}
+.login-tip{font-size:12px;color:#999;margin-bottom:16px;line-height:1.5;}
+.lock-tip{color:red;margin:10px 0;display:none;}
+.login-input{width:100%;padding:11px 14px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;font-size:15px;}
+.remember-code{display:flex;align-items:center;gap:6px;margin-bottom:16px;text-align:left;}
+.login-btn{width:100%;padding:11px;background:#ff9ebb;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;}
+
+/* 物品搜索栏：主标题正下方 */
 .search-bar{background:#fff;padding:12px 16px;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
 .search-input{width:100%;padding:10px 14px;border:1px solid #e5e5e5;border-radius:8px;outline:none;font-size:14px;}
 .search-input::placeholder{color:#aaa;}
@@ -35,35 +58,142 @@ body{background:#f7f7f7;padding-bottom:90px;}
 .del-btn{background:#f56c6c;color:#fff;}
 .add-btn{width:30px;height:30px;border-radius:50%;background:#ff9ebb;color:white;border:none;font-size:20px;cursor:pointer;}
 
-/* 底部固定栏：购物车+合计+保存清单按钮 */
-.cart-bar{position:fixed;bottom:0;left:0;right:0;height:75px;background:#222;color:#fff;display:flex;align-items:center;padding:0 16px;gap:16px;z-index:98;}
+/* 底部固定栏 */
+.cart-bar{position:fixed;bottom:0;left:0;right:0;height:75px;background:#222;color:#fff;display:flex;align-items:center;padding:0 16px;gap:10px;z-index:98;}
 .cart-icon{width:46px;height:46px;background:#ff9ebb;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;cursor:pointer;}
 .cart-count{position:absolute;top:-6px;right:-6px;background:#ff4d88;width:20px;height:20px;border-radius:50%;font-size:12px;text-align:center;line-height:20px;}
 .cart-total{flex:1;}
 .cart-total .total-price{font-size:20px;}
 .cart-total .tip{font-size:13px;color:#aaa;}
-.save-list-bottom{padding:10px 16px;background:#ff9ebb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;}
+.save-list-bottom{padding:10px 12px;background:#ff9ebb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;}
+.archive-bill-btn{padding:10px 12px;background:#36cbcb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;}
 
-.cart-popup{position:fixed;bottom:75px;left:0;right:0;background:#fff;max-height:50vh;overflow-y:auto;display:none;}
-.cart-item{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eee;align-items:center;}
-.cart-ctrl button{width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#fff;cursor:pointer;margin:0 6px;}
+/* 购物车弹窗 */
+.cart-popup{
+    position: fixed;
+    bottom: 75px;
+    left: 12px;
+    right: 12px;
+    max-height: 48vh;
+    overflow-y: auto;
+    display: none;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 18px rgba(0,0,0,0.22);
+    z-index: 99;
+}
+.cart-popup-header{
+    background: linear-gradient(135deg, #ff9ebb, #ff7aa8);
+    color: #fff;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.cart-popup-header .close-cart{
+    background: rgba(255,255,255,0.25);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+}
+.cart-item{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.empty-cart-tip{
+    padding: 24px 16px;
+    text-align: center;
+    color: #999;
+    font-size:14px;
+}
+.cart-ctrl button{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #ff9ebb;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    margin: 0 6px;
+}
 
-/* 独立归档汇总，完全独立，和分类无嵌套 */
+/* 归档汇总+文件夹总容器 */
 .list-container{margin:40px 16px 20px;background:#fff;border-radius:12px;padding:22px;}
-.list-top{margin-bottom:18px;}
+.list-top{margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
 .list-top h3{font-size:18px;color:#222;}
-.saved-list-item{border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:14px;}
-.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.folder-op-bar{display:flex;gap:8px;flex-wrap:wrap;}
+.folder-op-bar button{border:none;padding:6px 10px;border-radius:6px;font-size:13px;cursor:pointer;}
+.new-folder-btn{background:#36cbcb;color:#fff;}
+.move-to-folder-btn{background:#409eff;color:#fff;}
+.clear-select-btn{background:#999;color:#fff;}
+
+/* 账单专属搜索框 */
+.bill-search{width:100%;padding:10px 14px;border:1px solid #eee;border-radius:8px;outline:none;margin-bottom:16px;}
+.bill-search::placeholder{color:#999}
+
+/* 文件夹区块样式 */
+.folder-block{margin-bottom:20px;border:1px solid #eee;border-radius:10px;overflow:hidden;}
+.folder-head{padding:12px 16px;background:#f8f8f8;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.folder-name{font-weight:500;display:flex;align-items:center;gap:6px;}
+.folder-count{font-size:12px;color:#999;}
+.folder-ctrl{display:flex;gap:6px;}
+.folder-ctrl button{border:none;padding:3px 7px;border-radius:4px;font-size:12px;color:#fff;cursor:pointer;}
+.folder-rename{background:#409eff;}
+.folder-del{background:#f56c6c;}
+.folder-content{padding:10px 16px;display:none;}
+.folder-content.show{display:block;}
+
+/* 账单条目（带复选框） */
+.saved-list-item{border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:12px;display:flex;gap:10px;}
+.bill-checkbox{width:18px;height:18px;margin-top:3px;cursor:pointer;}
+.bill-main{flex:1;}
+.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .list-name{font-weight:500;font-size:16px;}
-.list-op{display:flex;gap:6px;}
-.list-op button{border:none;padding:5px 9px;border-radius:6px;font-size:12px;cursor:pointer;}
+.list-op{display:flex;gap:6px;flex-wrap:wrap;}
+.list-op button{border:none;padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer;}
 .rename-btn{background:#409eff;color:#fff;}
 .edit-bill-btn{background:#36cbcb;color:#fff;}
+.export-img-btn{background:#22c55e;color:#fff;}
 .del-list-btn{background:#f56c6c;color:#fff;}
-.list-time{font-size:12px;color:#999;margin-bottom:8px;}
-.list-sum{color:#ff7aa8;font-weight:500;margin-bottom:8px;}
-.list-detail{font-size:13px;color:#555;line-height:1.7;padding-top:8px;border-top:1px solid #eee;}
+.list-time{font-size:12px;color:#999;margin-bottom:6px;}
+.list-sum{color:#ff7aa8;font-weight:500;margin-bottom:10px;}
 
+/* 归档内物品样式（勾选+备注） */
+.archive-good-item{
+    padding:8px 0;
+    border-bottom:1px solid #f2f2f2;
+    margin-bottom:6px;
+}
+.archive-good-item:last-child{border-bottom:none;margin-bottom:0;}
+.good-check-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:4px;
+}
+.good-check-row label{
+    flex:1;
+}
+.good-desc{
+    width:100%;
+    padding:6px 8px;
+    border:1px solid #ddd;
+    border-radius:6px;
+    font-size:13px;
+}
+.checked-text{text-decoration:line-through;color:#999;}
+
+/* 弹窗通用 */
 .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;z-index:999;align-items:center;justify-content:center;}
 .modal-box{background:#fff;width:90%;max-width:420px;padding:24px;border-radius:12px;}
 .modal-box h3{text-align:center;margin-bottom:20px;}
@@ -73,99 +203,200 @@ body{background:#f7f7f7;padding-bottom:90px;}
 .modal-btns button{flex:1;padding:11px;border:none;border-radius:8px;cursor:pointer;}
 .btn-cancel{background:#eee;}
 .btn-save{background:#ff9ebb;color:white;}
+
+/* 文件夹选择弹窗 */
+.folder-select-list{max-height:60vh;overflow-y:auto;margin:10px 0;}
+.folder-select-item{padding:10px;border-bottom:1px solid #eee;cursor:pointer;}
+.folder-select-item:hover{background:#f8f8f8;}
+
+#exportCanvas{display:none;}
+.export-wrap{background:#fff;padding:20px;width:360px;}
+.export-title{font-size:18px;font-weight:bold;text-align:center;margin-bottom:12px;color:#ff7aa8;}
+.export-time{font-size:12px;color:#666;text-align:center;margin-bottom:16px;}
+.export-item{padding:8px 0;border-bottom:1px solid #eee;font-size:14px;}
+.export-total{margin-top:16px;font-size:16px;font-weight:bold;color:#ff7aa8;text-align:right;}
+
+#fileInput{display:none;}
+.main-wrap{display:none;}
 </style>
 </head>
 <body>
-<!-- 标题 -->
-<div class="header">月度愿望采购清单</div>
+<input type="file" id="fileInput" accept=".json" onchange="window.importBackupFile(event)">
+<canvas id="exportCanvas"></canvas>
+<div id="exportWrapTemp" class="export-wrap"></div>
 
-<!-- 搜索栏：标题正下方 -->
-<div class="search-bar">
-    <input type="text" class="search-input" id="goodsSearch" placeholder="搜索物品名称..." oninput="window.filterGoodsByKeyword()">
-</div>
-
-<div class="add-bar">
-    <input type="text" id="addName" placeholder="物品名称">
-    <input type="number" id="addPrice" placeholder="预估价格" step="0.01">
-    <select id="addCat">
-        <option value="daily">日常用品</option>
-        <option value="clothes">服饰穿搭</option>
-        <option value="digital">数码配件</option>
-        <option value="snack">零食饮品</option>
-        <option value="big">大件开销</option>
-    </select>
-    <button onclick="window.addNewGoods()">新增愿望</button>
-</div>
-
-<div class="container">
-    <div class="left-category" id="categoryWrap">
-        <div class="category-item active" data-cat="all">全部</div>
-        <div class="category-item" data-cat="daily">日常用品</div>
-        <div class="category-item" data-cat="clothes">服饰穿搭</div>
-        <div class="category-item" data-cat="digital">数码配件</div>
-        <div class="category-item" data-cat="snack">零食饮品</div>
-        <div class="category-item" data-cat="big">大件开销</div>
+<div class="login-mask" id="loginMask">
+    <div class="login-box">
+        <h3>账号登录（独立隐私空间）</h3>
+        <p class="privacy-tip">每个账号=独立存储空间，账号唔同就算密码一样都唔会串数据</p>
+        <p class="login-tip">新账号自动注册，数据完全隔离</p>
+        <p class="lock-tip" id="lockText">登录已锁定，请稍后再试</p>
+        <input class="login-input" id="inviteCodeInput" placeholder="输入账号（自定义编号如01、02）">
+        <input class="login-input" id="pwdInput" type="password" placeholder="独立账号密码">
+        <label class="remember-code">
+            <input type="checkbox" id="rememberCode"> 记住当前账号
+        </label>
+        <button class="login-btn" onclick="window.checkLogin()">确认登录</button>
     </div>
-    <div class="goods-wrap" id="goodsWrap"></div>
 </div>
 
-<!-- 独立归档汇总（移除顶部保存按钮） -->
-<div class="list-container">
-    <div class="list-top">
-        <h3>清单归档汇总</h3>
-    </div>
-    <div id="savedListWrap"></div>
-</div>
-
-<div class="cart-popup" id="cartPopup"></div>
-
-<!-- 底部固定栏：购物车图标+合计+保存清单按钮 -->
-<div class="cart-bar">
-    <div class="cart-icon" onclick="window.toggleCartPopup()">
-        🛒<div class="cart-count" id="cartNum">0</div>
-    </div>
-    <div class="cart-total">
-        <div class="total-price">合计：¥<span id="totalMoney">0.00</span></div>
-        <div class="tip">已加入清单项目</div>
-    </div>
-    <button class="save-list-bottom" onclick="window.saveCurrentCartToList()">保存清单</button>
-</div>
-
-<div class="modal-mask" id="editModal">
-    <div class="modal-box">
-        <h3>修改愿望项目</h3>
-        <input type="hidden" id="editId">
-        <div class="modal-row"><input type="text" id="editName" placeholder="物品名称"></div>
-        <div class="modal-row"><input type="number" id="editPrice" placeholder="预估价格" step="0.01"></div>
-        <div class="modal-row">
-            <select id="editCat">
-                <option value="daily">日常用品</option>
-                <option value="clothes">服饰穿搭</option>
-                <option value="digital">数码配件</option>
-                <option value="snack">零食饮品</option>
-                <option value="big">大件开销</option>
-            </select>
-        </div>
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="window.closeEditModal()">取消</button>
-            <button class="btn-save" onclick="window.saveEditGoods()">保存修改</button>
+<div class="main-wrap" id="mainWrap">
+    <!-- 修复后头部，标题不会被按钮遮挡 -->
+    <div class="header">
+        <div class="header-title">月度计划采购清单</div>
+        <div class="header-operate">
+            <button class="switch-user-btn" onclick="window.switchUser()">切换账号</button>
+            <button class="logout-btn" onclick="window.logoutAccount()">退出登录</button>
         </div>
     </div>
-</div>
 
-<div class="modal-mask" id="renameListModal">
-    <div class="modal-box">
-        <h3>修改清单名称</h3>
-        <input type="hidden" id="renameListId">
-        <div class="modal-row"><input type="text" id="newListName" placeholder="输入清单新名称"></div>
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="window.closeRenameModal()">取消</button>
-            <button class="btn-save" onclick="window.saveRenameList()">保存</button>
+    <!-- 物品搜索框：搜左侧所有商品 -->
+    <div class="search-bar">
+        <input type="text" class="search-input" id="goodsSearch" placeholder="搜索物品名称..." oninput="window.filterGoodsByKeyword()">
+    </div>
+
+    <div class="add-bar">
+        <input type="text" id="addName" placeholder="物品名称">
+        <input type="number" id="addPrice" placeholder="预估价格" step="0.01">
+        <select id="addCat">
+            <option value="daily">日常用品</option>
+            <option value="clothes">服饰穿搭</option>
+            <option value="digital">数码配件</option>
+            <option value="snack">零食饮品</option>
+            <option value="big">大件开销</option>
+            <option value="pay">生活缴费</option>
+            <option value="trans">交通出行</option>
+        </select>
+        <button onclick="window.addNewGoods()">新增</button>
+    </div>
+
+    <div class="container">
+        <div class="left-category" id="categoryWrap">
+            <div class="category-item active" data-cat="all">全部</div>
+            <div class="category-item" data-cat="daily">日常用品</div>
+            <div class="category-item" data-cat="clothes">服饰穿搭</div>
+            <div class="category-item" data-cat="digital">数码配件</div>
+            <div class="category-item" data-cat="snack">零食饮品</div>
+            <div class="category-item" data-cat="big">大件开销</div>
+            <div class="category-item" data-cat="pay">生活缴费</div>
+            <div class="category-item" data-cat="trans">交通出行</div>
+        </div>
+        <div class="goods-wrap" id="goodsWrap"></div>
+    </div>
+
+    <!-- 归档汇总 + 文件夹系统 -->
+    <div class="list-container">
+        <div class="list-top">
+            <h3>清单归档汇总（文件夹分类管理）</h3>
+            <div class="folder-op-bar">
+                <button class="new-folder-btn" onclick="window.openNewFolderModal()">新建文件夹</button>
+                <button class="move-to-folder-btn" onclick="window.openMoveFolderModal()">移入选中账单</button>
+                <button class="clear-select-btn" onclick="window.clearAllBillSelect()">清空选择</button>
+            </div>
+        </div>
+        <input class="bill-search" id="billSearchInput" placeholder="搜索全部账单（账单名/月份/物品关键词）" oninput="window.filterSavedBill()">
+        <div id="folderWrap"></div>
+    </div>
+
+    <div class="cart-popup" id="cartPopup">
+        <div class="cart-popup-header">
+            <span>🛒 购物车清单</span>
+            <button class="close-cart" onclick="window.toggleCartPopup()">×</button>
+        </div>
+        <div id="cartPopupContent"></div>
+    </div>
+
+    <div class="cart-bar">
+        <div class="cart-icon" onclick="window.toggleCartPopup()">
+            🛒<div class="cart-count" id="cartNum">0</div>
+        </div>
+        <div class="cart-total">
+            <div class="total-price">合计：¥<span id="totalMoney">0.00</span></div>
+            <div class="tip">保存｜归档=月度正式账单（自定义）</div>
+        </div>
+        <button class="save-list-bottom" onclick="window.saveCurrentCartToList()">保存清单（草稿）</button>
+        <button class="archive-bill-btn" onclick="window.archiveCurrentBill()">归档账单（月度存档）</button>
+    </div>
+
+    <!-- 修改物品弹窗 -->
+    <div class="modal-mask" id="editModal">
+        <div class="modal-box">
+            <h3>修改愿望项目</h3>
+            <input type="hidden" id="editId">
+            <div class="modal-row"><input type="text" id="editName" placeholder="物品名称"></div>
+            <div class="modal-row"><input type="number" id="editPrice" placeholder="预估价格" step="0.01"></div>
+            <div class="modal-row">
+                <select id="editCat">
+                    <option value="daily">日常用品</option>
+                    <option value="clothes">服饰穿搭</option>
+                    <option value="digital">数码配件</option>
+                    <option value="snack">零食饮品</option>
+                    <option value="big">大件开销</option>
+                    <option value="pay">生活缴费</option>
+                    <option value="trans">交通出行</option>
+                </select>
+            </div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="window.closeEditModal()">取消</button>
+                <button class="btn-save" onclick="window.saveEditGoods()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改账单名称弹窗 -->
+    <div class="modal-mask" id="renameListModal">
+        <div class="modal-box">
+            <h3>修改账单名称</h3>
+            <input type="hidden" id="renameListId">
+            <div class="modal-row"><input type="text" id="newListName" placeholder="输入账单新名称（建议标注月份，例：7月购物预算）"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="window.closeRenameModal()">取消</button>
+                <button class="btn-save" onclick="window.saveRenameList()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建文件夹弹窗 -->
+    <div class="modal-mask" id="newFolderModal">
+        <div class="modal-box">
+            <h3>新建归档文件夹</h3>
+            <div class="modal-row"><input type="text" id="newFolderName" placeholder="例如：2026上半年、大件家电账单"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="window.closeNewFolderModal()">取消</button>
+                <button class="btn-save" onclick="window.createNewFolder()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 移入文件夹选择弹窗 -->
+    <div class="modal-mask" id="moveFolderModal">
+        <div class="modal-box">
+            <h3>选择目标文件夹</h3>
+            <div class="folder-select-list" id="folderSelectWrap"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="window.closeMoveFolderModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文件夹改名弹窗 -->
+    <div class="modal-mask" id="renameFolderModal">
+        <div class="modal-box">
+            <h3>修改文件夹名称</h3>
+            <input type="hidden" id="editFolderId">
+            <div class="modal-row"><input type="text" id="editFolderName" placeholder="输入新文件夹名"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="window.closeRenameFolderModal()">取消</button>
+                <button class="btn-save" onclick="window.saveRenameFolder()">保存</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+window.currentInviteCode = '';
+window.loginErrorCount = 0;
+window.lockEndTime = 0;
 window.defaultGoods = [
     {id:1,name:"护肤品套装",price:268,cat:"daily"},
     {id:2,name:"夏季短袖T恤",price:89,cat:"clothes"},
@@ -175,23 +406,363 @@ window.defaultGoods = [
     {id:6,name:"洗护套装",price:76,cat:"daily"},
     {id:7,name:"运动鞋",price:329,cat:"clothes"}
 ];
+window.billSearchKey = '';
+window.selectedBillIds = []; // 存储勾选嘅账单ID
+window.folderList = []; // 文件夹数组
+window.unclassifiedBills = []; // 未分类账单
+window.folderBills = {}; // key=folderId, value=[billId数组]
 
-window.goodsList = JSON.parse(localStorage.getItem('wishGoods')) || window.defaultGoods;
-window.cartList = JSON.parse(localStorage.getItem('wishCart')) || [];
-window.savedListArr = JSON.parse(localStorage.getItem('savedWishList')) || [];
-window.currentCat = 'all';
-window.searchKeyword = '';
+window.onload = function(){
+    let savedCode = localStorage.getItem('saved_invite_code');
+    if(savedCode){
+        document.getElementById('inviteCodeInput').value = savedCode;
+        document.getElementById('rememberCode').checked = true;
+    }
+    setInterval(checkLockStatus,1000);
+}
 
-// 全局初始化
-window.init = function(){
+function checkLockStatus(){
+    const now = Date.now();
+    if(window.lockEndTime > now){
+        document.getElementById('lockText').style.display = 'block';
+        document.querySelector('.login-btn').disabled = true;
+    }else{
+        document.getElementById('lockText').style.display = 'none';
+        document.querySelector('.login-btn').disabled = false;
+    }
+}
+
+window.checkLogin = function(){
+    const now = Date.now();
+    if(window.lockEndTime > now) return;
+
+    const code = document.getElementById('inviteCodeInput').value.trim();
+    const pwd = document.getElementById('pwdInput').value.trim();
+    if(!code || !pwd) return alert('请填写账号同密码');
+
+    const accountData = JSON.parse(localStorage.getItem('account_passwords') || '{}');
+    window.loginErrorCount++;
+
+    if(!accountData[code]){
+        accountData[code] = pwd;
+        localStorage.setItem('account_passwords', JSON.stringify(accountData));
+        alert(`账号${code}注册成功，独立存储空间已创建`);
+        window.loginSuccess(code);
+        return;
+    }
+
+    if(accountData[code] !== pwd){
+        if(window.loginErrorCount >=5){
+            window.lockEndTime = Date.now() + 5 * 60 * 1000;
+            alert('连续输错5次，锁定5分钟唔可以登录');
+        }else{
+            alert(`密码错误，剩余尝试次数：${5 - window.loginErrorCount}`);
+        }
+        return;
+    }
+
+    window.loginSuccess(code);
+}
+
+window.switchUser = function(){
+    window.currentInviteCode = '';
+    document.getElementById('mainWrap').style.display = 'none';
+    document.getElementById('loginMask').style.display = 'flex';
+    document.getElementById('pwdInput').value = '';
+}
+
+window.loginSuccess = function(code){
+    window.loginErrorCount = 0;
+    window.currentInviteCode = code;
+    const remember = document.getElementById('rememberCode').checked;
+    if(remember) localStorage.setItem('saved_invite_code', code);
+    else localStorage.removeItem('saved_invite_code');
+
+    document.getElementById('loginMask').style.display = 'none';
+    document.getElementById('mainWrap').style.display = 'block';
+    window.initUserData();
+}
+
+window.logoutAccount = function(){
+    window.currentInviteCode = '';
+    document.getElementById('mainWrap').style.display = 'none';
+    document.getElementById('loginMask').style.display = 'flex';
+    document.getElementById('pwdInput').value = '';
+}
+
+window.getStoreKey = function(type){
+    return `${window.currentInviteCode}_${type}`;
+}
+
+// 初始化全部本地数据（含文件夹）
+window.initUserData = function(){
+    window.goodsList = JSON.parse(localStorage.getItem('wishGoods')) || window.defaultGoods;
+    window.cartList = JSON.parse(localStorage.getItem(window.getStoreKey('cart'))) || [];
+    window.savedListArr = JSON.parse(localStorage.getItem(window.getStoreKey('savedList'))) || [];
+    window.folderList = JSON.parse(localStorage.getItem(window.getStoreKey('folders'))) || [];
+    window.folderBills = JSON.parse(localStorage.getItem(window.getStoreKey('folderBills'))) || {};
+    window.selectedBillIds = [];
+    window.currentCat = 'all';
+    window.searchKeyword = '';
+    window.billSearchKey = '';
+
+    window.splitClassifiedBills(); // 拆分未分类/文件夹账单
     window.renderCategory();
     window.filterGoodsByKeyword();
     window.renderCart();
     window.calcTotal();
-    window.renderSavedList();
+    window.filterSavedBill();
 }
 
-// 物品搜索筛选
+// 拆分账单：未分类 + 各个文件夹
+window.splitClassifiedBills = function(){
+    window.unclassifiedBills = [];
+    Object.values(window.folderBills).forEach(arr=>arr.length=0);
+    window.savedListArr.forEach(bill=>{
+        let inFolder = false;
+        for(let fid in window.folderBills){
+            if(window.folderBills[fid].includes(bill.listId)){
+                inFolder = true;
+                break;
+            }
+        }
+        if(!inFolder) window.unclassifiedBills.push(bill);
+    })
+}
+
+// 账单搜索过滤函数
+window.filterSavedBill = function(){
+    window.billSearchKey = document.getElementById('billSearchInput').value.trim().toLowerCase();
+    window.renderFolderWrap();
+}
+
+// 清空所有勾选账单
+window.clearAllBillSelect = function(){
+    window.selectedBillIds = [];
+    window.renderFolderWrap();
+}
+
+// 切换账单勾选状态
+window.toggleBillSelect = function(billId, checked){
+    if(checked){
+        if(!window.selectedBillIds.includes(billId)) window.selectedBillIds.push(billId);
+    }else{
+        window.selectedBillIds = window.selectedBillIds.filter(id=>id!==billId);
+    }
+}
+
+// 渲染文件夹+账单总区域
+window.renderFolderWrap = function(){
+    const wrap = document.getElementById('folderWrap');
+    let html = '';
+    // 过滤关键词
+    const filterAllBill = (bill)=>{
+        if(!window.billSearchKey) return true;
+        let matchName = bill.listName.toLowerCase().includes(window.billSearchKey);
+        let matchTime = bill.createTime.toLowerCase().includes(window.billSearchKey);
+        let matchGoods = bill.detail.some(item=>item.name.toLowerCase().includes(window.billSearchKey));
+        return matchName || matchTime || matchGoods;
+    }
+    const filterUnclass = window.unclassifiedBills.filter(filterAllBill);
+    // 渲染未分类区块
+    html += `<div class="folder-block">
+        <div class="folder-head" onclick="this.nextElementSibling.classList.toggle('show')">
+            <div class="folder-name">📂 未分类账单 <span class="folder-count">(${filterUnclass.length})</span></div>
+            <div>点击展开/收起</div>
+        </div>
+        <div class="folder-content show">`;
+    if(filterUnclass.length ===0){
+        html += '<div style="text-align:center;color:#999;padding:20px">暂无未分类账单</div>';
+    }else{
+        filterUnclass.forEach(bill=>html += renderSingleBillHtml(bill));
+    }
+    html += `</div></div>`;
+    // 渲染自定义文件夹
+    window.folderList.forEach(folder=>{
+        const fid = folder.folderId;
+        const billIdsInFolder = window.folderBills[fid] || [];
+        const folderBillsData = window.savedListArr.filter(b=>billIdsInFolder.includes(b.listId)).filter(filterAllBill);
+        html += `<div class="folder-block">
+            <div class="folder-head" onclick="this.nextElementSibling.classList.toggle('show')">
+                <div class="folder-name">📁 ${folder.folderName} <span class="folder-count">(${folderBillsData.length})</span></div>
+                <div class="folder-ctrl">
+                    <button class="folder-rename" onclick="event.stopPropagation();window.openRenameFolderModal(${fid})">改名</button>
+                    <button class="folder-del" onclick="event.stopPropagation();window.deleteFolder(${fid})">删除</button>
+                </div>
+            </div>
+            <div class="folder-content">`;
+        if(folderBillsData.length ===0){
+            html += '<div style="text-align:center;color:#999;padding:20px">文件夹内暂无账单</div>';
+        }else{
+            folderBillsData.forEach(bill=>html += renderSingleBillHtml(bill));
+        }
+        html += `</div></div>`;
+    })
+    wrap.innerHTML = html;
+}
+
+// 单条账单HTML片段抽取
+function renderSingleBillHtml(bill){
+    const isChecked = window.selectedBillIds.includes(bill.listId);
+    let detailHtml = '';
+    bill.detail.forEach((item,idx)=>{
+        let checkClass = item.checked ? 'checked-text' : '';
+        detailHtml += `
+        <div class="archive-good-item">
+            <div class="good-check-row">
+                <input type="checkbox" 
+                    ${item.checked ? 'checked' : ''} 
+                    onchange="window.changeGoodCheck(${bill.listId},${idx},this.checked)">
+                <label class="${checkClass}">${item.name} ×${item.num} | ¥${(item.price*item.num).toFixed(2)}</label>
+            </div>
+            <input class="good-desc" 
+                placeholder="备注：例如买咗一半、已全款、待补货" 
+                value="${item.remark||''}"
+                oninput="window.changeGoodRemark(${bill.listId},${idx},this)">
+        </div>
+        `
+    })
+    return `
+    <div class="saved-list-item">
+        <input class="bill-checkbox" type="checkbox" ${isChecked?'checked':''} onchange="window.toggleBillSelect(${bill.listId},this.checked)">
+        <div class="bill-main">
+            <div class="list-header">
+                <div class="list-name">${bill.listName}</div>
+                <div class="list-op">
+                    <button class="rename-btn" onclick="window.openRenameModal(${bill.listId})">改名</button>
+                    <button class="edit-bill-btn" onclick="window.editBill(${bill.listId})">修改账单</button>
+                    <button class="export-img-btn" onclick="window.exportBillToImage(${bill.listId})">导出图片</button>
+                    <button class="del-list-btn" onclick="window.deleteSavedList(${bill.listId})">删除</button>
+                </div>
+            </div>
+            <div class="list-time">${bill.createTime}</div>
+            <div class="list-sum">清单总预算：¥${bill.totalMoney.toFixed(2)}</div>
+            <div class="archive-goods-wrap">${detailHtml}</div>
+        </div>
+    </div>`;
+}
+
+// 新建文件夹弹窗
+window.openNewFolderModal = function(){
+    document.getElementById('newFolderName').value = '';
+    document.getElementById('newFolderModal').style.display = 'flex';
+}
+window.closeNewFolderModal = function(){
+    document.getElementById('newFolderModal').style.display = 'none';
+}
+window.createNewFolder = function(){
+    const name = document.getElementById('newFolderName').value.trim();
+    if(!name) return alert('文件夹名称不能为空');
+    const newFolder = {folderId: Date.now(), folderName: name};
+    window.folderList.push(newFolder);
+    window.folderBills[newFolder.folderId] = [];
+    localStorage.setItem(window.getStoreKey('folders'), JSON.stringify(window.folderList));
+    localStorage.setItem(window.getStoreKey('folderBills'), JSON.stringify(window.folderBills));
+    window.splitClassifiedBills();
+    window.renderFolderWrap();
+    window.closeNewFolderModal();
+    alert(`文件夹「${name}」创建成功`);
+}
+
+// 删除文件夹（账单退回未分类）
+window.deleteFolder = function(fid){
+    const target = window.folderList.find(f=>f.folderId === fid);
+    if(!confirm(`确定删除文件夹「${target.folderName}」？入面账单会退回未分类`)) return;
+    delete window.folderBills[fid];
+    window.folderList = window.folderList.filter(f=>f.folderId!==fid);
+    localStorage.setItem(window.getStoreKey('folders'), JSON.stringify(window.folderList));
+    localStorage.setItem(window.getStoreKey('folderBills'), JSON.stringify(window.folderBills));
+    window.splitClassifiedBills();
+    window.renderFolderWrap();
+}
+
+// 改名文件夹弹窗
+window.openRenameFolderModal = function(fid){
+    document.getElementById('editFolderId').value = fid;
+    const target = window.folderList.find(f=>f.folderId === fid);
+    document.getElementById('editFolderName').value = target.folderName;
+    document.getElementById('renameFolderModal').style.display = 'flex';
+}
+window.closeRenameFolderModal = function(){
+    document.getElementById('renameFolderModal').style.display = 'none';
+}
+window.saveRenameFolder = function(){
+    const fid = Number(document.getElementById('editFolderId').value);
+    const newName = document.getElementById('editFolderName').value.trim();
+    if(!newName) return alert('名称不能为空');
+    const idx = window.folderList.findIndex(f=>f.folderId === fid);
+    window.folderList[idx].folderName = newName;
+    localStorage.setItem(window.getStoreKey('folders'), JSON.stringify(window.folderList));
+    window.renderFolderWrap();
+    window.closeRenameFolderModal();
+}
+
+// 移入选中账单弹窗
+window.openMoveFolderModal = function(){
+    if(window.selectedBillIds.length ===0) return alert('请先勾选需要移动嘅账单');
+    const wrap = document.getElementById('folderSelectWrap');
+    let html = `<div class="folder-select-item" onclick="window.moveBillToFolder(0)">放回未分类</div>`;
+    window.folderList.forEach(f=>{
+        html += `<div class="folder-select-item" onclick="window.moveBillToFolder(${f.folderId})">${f.folderName}</div>`;
+    })
+    wrap.innerHTML = html;
+    document.getElementById('moveFolderModal').style.display = 'flex';
+}
+window.closeMoveFolderModal = function(){
+    document.getElementById('moveFolderModal').style.display = 'none';
+}
+window.moveBillToFolder = function(targetFid){
+    // targetFid=0 代表放回未分类
+    window.selectedBillIds.forEach(billId=>{
+        // 先从所有文件夹移除该账单
+        for(let fid in window.folderBills){
+            window.folderBills[fid] = window.folderBills[fid].filter(id=>id!==billId);
+        }
+        // 移入目标文件夹（非0先加入）
+        if(targetFid !==0){
+            if(!window.folderBills[targetFid]) window.folderBills[targetFid] = [];
+            if(!window.folderBills[targetFid].includes(billId)) window.folderBills[targetFid].push(billId);
+        }
+    })
+    localStorage.setItem(window.getStoreKey('folderBills'), JSON.stringify(window.folderBills));
+    window.selectedBillIds = [];
+    window.splitClassifiedBills();
+    window.renderFolderWrap();
+    window.closeMoveFolderModal();
+    alert('账单移动完成');
+}
+
+window.exportBillToImage = async function(listId){
+    const targetList = window.savedListArr.find(l=>l.listId === listId);
+    if(!targetList) return;
+    const wrapDom = document.getElementById('exportWrapTemp');
+    let itemHtml = '';
+    targetList.detail.forEach(i=>{
+        const status = i.checked ? "✅已购买" : "⭕待购买";
+        const remarkText = i.remark ? `备注：${i.remark}` : "";
+        itemHtml += `<div class="export-item">${status} ${i.name} ×${i.num} | ¥${(i.price*i.num).toFixed(2)} ${remarkText}</div>`;
+    })
+    wrapDom.innerHTML = `
+        <div class="export-title">${targetList.listName}</div>
+        <div class="export-time">创建时间：${targetList.createTime}</div>
+        ${itemHtml}
+        <div class="export-total">总预算：¥${targetList.totalMoney.toFixed(2)}</div>
+    `;
+    wrapDom.style.display = 'block';
+    const canvas = document.getElementById('exportCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasDom = await html2canvas(wrapDom,{scale:2});
+    canvas.width = canvasDom.width;
+    canvas.height = canvasDom.height;
+    ctx.drawImage(canvasDom,0,0);
+    const link = document.createElement('a');
+    link.download = `${targetList.listName}_账单截图.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    wrapDom.style.display = 'none';
+    alert('账单图片已下载，可以发送微信好友');
+}
+
 window.filterGoodsByKeyword = function(){
     window.searchKeyword = document.getElementById('goodsSearch').value.trim().toLowerCase();
     window.renderGoods();
@@ -210,9 +781,7 @@ window.renderCategory = function(){
 
 window.renderGoods = function(){
     let html = '';
-    // 分类筛选
     let filterList = window.currentCat === 'all' ? window.goodsList : window.goodsList.filter(i=>i.cat === window.currentCat);
-    // 关键词搜索筛选
     if(window.searchKeyword){
         filterList = filterList.filter(item=>item.name.toLowerCase().includes(window.searchKeyword));
     }
@@ -240,7 +809,7 @@ window.addNewGoods = function(){
     let cat = document.getElementById('addCat').value;
     if(!name || isNaN(price) || price <= 0) return alert('请填写完整名称与有效价格');
     window.goodsList.push({id:Date.now(), name, price, cat});
-    window.saveGoods();
+    localStorage.setItem('wishGoods', JSON.stringify(window.goodsList));
     window.filterGoodsByKeyword();
     document.getElementById('addName').value = '';
     document.getElementById('addPrice').value = '';
@@ -265,7 +834,7 @@ window.saveEditGoods = function(){
     if(!name || isNaN(price) || price <=0) return alert('内容不能为空');
     let idx = window.goodsList.findIndex(i=>i.id === id);
     window.goodsList[idx] = {id, name, price, cat};
-    window.saveGoods();
+    localStorage.setItem('wishGoods',JSON.stringify(window.goodsList));
     window.filterGoodsByKeyword();
     window.closeEditModal();
 }
@@ -274,7 +843,8 @@ window.deleteGoods = function(goodId){
     if(!confirm('确定删除该项目？')) return;
     window.goodsList = window.goodsList.filter(i=>i.id !== goodId);
     window.cartList = window.cartList.filter(i=>i.id !== goodId);
-    window.saveGoods(); window.saveCart();
+    localStorage.setItem('wishGoods',JSON.stringify(window.goodsList));
+    localStorage.setItem(window.getStoreKey('cart'), JSON.stringify(window.cartList));
     window.filterGoodsByKeyword(); window.renderCart(); window.calcTotal();
 }
 
@@ -282,32 +852,46 @@ window.addCart = function(goodId){
     let good = window.goodsList.find(i=>i.id === goodId);
     let cartItem = window.cartList.find(i=>i.id === goodId);
     if(cartItem) cartItem.num +=1;
-    else window.cartList.push({id:good.id, name:good.name, price:good.price, num:1});
-    window.saveCart(); window.renderCart(); window.calcTotal();
+    else window.cartList.push({
+        id:good.id, 
+        name:good.name, 
+        price:good.price, 
+        num:1,
+        checked:false,
+        remark:''
+    });
+    localStorage.setItem(window.getStoreKey('cart'), JSON.stringify(window.cartList));
+    window.renderCart(); window.calcTotal();
 }
 
 window.changeNum = function(goodId, step){
     let item = window.cartList.find(i=>i.id === goodId);
     item.num += step;
     if(item.num <= 0) window.cartList = window.cartList.filter(i=>i.id !== goodId);
-    window.saveCart(); window.renderCart(); window.calcTotal();
+    localStorage.setItem(window.getStoreKey('cart'), JSON.stringify(window.cartList));
+    window.renderCart(); window.calcTotal();
 }
 
 window.renderCart = function(){
     let html = '';
-    window.cartList.forEach(item=>{
-        html += `
-        <div class="cart-item">
-            <div>${item.name} ¥${item.price.toFixed(2)}</div>
-            <div class="cart-ctrl">
-                <button onclick="window.changeNum(${item.id},-1)">-</button>
-                <span>${item.num}</span>
-                <button onclick="window.changeNum(${item.id},1)">+</button>
+    if(window.cartList.length === 0){
+        html = `<div class="empty-cart-tip">购物车仲未有项目，点击物品加号添加</div>`;
+    }else{
+        window.cartList.forEach(item=>{
+            html += `
+            <div class="cart-item">
+                <div>${item.name}</div>
+                <div>¥${item.price.toFixed(2)}</div>
+                <div class="cart-ctrl">
+                    <button onclick="window.changeNum(${item.id},-1)">−</button>
+                    <span>${item.num}</span>
+                    <button onclick="window.changeNum(${item.id},1)">+</button>
+                </div>
             </div>
-        </div>
-        `
-    })
-    document.getElementById('cartPopup').innerHTML = html;
+            `
+        })
+    }
+    document.getElementById('cartPopupContent').innerHTML = html;
     let totalCount = window.cartList.reduce((s,i)=>s+i.num,0);
     document.getElementById('cartNum').innerText = totalCount;
 }
@@ -322,71 +906,89 @@ window.toggleCartPopup = function(){
     pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
 }
 
-window.saveGoods = function(){ localStorage.setItem('wishGoods',JSON.stringify(window.goodsList)); }
-window.saveCart = function(){ localStorage.setItem('wishCart',JSON.stringify(window.cartList)); }
-
-// 底部保存清单，弹窗输入清单名称
+// 保存清单=临时草稿，购物车保留唔清空
 window.saveCurrentCartToList = function(){
     if(window.cartList.length === 0) return alert('购物车为空，无法保存');
-    let listName = prompt('请输入清单名称（留空将使用时间命名）','');
+    let listName = prompt('输入草稿名称（留空默认实时时间）','');
     let now = new Date();
-    let defaultName = `实时_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}${now.getSeconds().toString().padStart(2,'0')}`;
+    let defaultName = `草稿_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
     listName = listName?.trim() || defaultName;
     let totalMoney = window.cartList.reduce((s,i)=>s+i.price*i.num,0);
-    window.savedListArr.unshift({
+    let copyCart = JSON.parse(JSON.stringify(window.cartList));
+    copyCart.forEach(item=>{
+        if(item.checked === undefined) item.checked = false;
+        if(item.remark === undefined) item.remark = '';
+    })
+    const newBill = {
         listId: Date.now(),
         listName,
         createTime: now.toLocaleString(),
         totalMoney,
-        detail: JSON.parse(JSON.stringify(window.cartList))
-    });
-    localStorage.setItem('savedWishList',JSON.stringify(window.savedListArr));
-    window.renderSavedList();
-    alert('清单保存成功');
+        detail: copyCart
+    };
+    window.savedListArr.unshift(newBill);
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+    window.splitClassifiedBills();
+    window.filterSavedBill();
+    alert('草稿清单保存成功，购物车内容保留');
 }
 
-// 渲染归档清单（全局onclick，彻底解决点击无响应）
-window.renderSavedList = function(){
-    let wrap = document.getElementById('savedListWrap');
-    if(window.savedListArr.length === 0){
-        wrap.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0">暂无保存清单</div>';
-        return;
-    }
-    let html = '';
-    window.savedListArr.forEach(list=>{
-        let detailStr = list.detail.map(item=>`${item.name} ×${item.num}  ¥${(item.price*item.num).toFixed(2)}`).join('<br>');
-        html += `
-        <div class="saved-list-item">
-            <div class="list-header">
-                <div class="list-name">${list.listName}</div>
-                <div class="list-op">
-                    <button class="rename-btn" onclick="window.openRenameModal(${list.listId})">改名</button>
-                    <button class="edit-bill-btn" onclick="window.editBill(${list.listId})">修改账单</button>
-                    <button class="del-list-btn" onclick="window.deleteSavedList(${list.listId})">删除</button>
-                </div>
-            </div>
-            <div class="list-time">${list.createTime}</div>
-            <div class="list-sum">清单总预算：¥${list.totalMoney.toFixed(2)}</div>
-            <div class="list-detail">${detailStr}</div>
-        </div>
-        `
+// 归档账单=月度正式存档，保存后清空购物车
+window.archiveCurrentBill = function(){
+    if(window.cartList.length === 0) return alert('购物车空白，不能归档账单');
+    let listName = prompt('填写月度账单名称（建议写月份，例：7月购物预算）','');
+    let now = new Date();
+    let defaultName = `月度账单_${now.getFullYear()}年${now.getMonth()+1}月`;
+    listName = listName?.trim() || defaultName;
+    let totalMoney = window.cartList.reduce((s,i)=>s + i.price*i.num,0);
+    let copyCart = JSON.parse(JSON.stringify(window.cartList));
+    copyCart.forEach(item=>{
+        if(item.checked === undefined) item.checked = false;
+        if(item.remark === undefined) item.remark = '';
     })
-    wrap.innerHTML = html;
+    const newBill = {
+        listId: Date.now(),
+        listName,
+        createTime: now.toLocaleString(),
+        totalMoney,
+        detail: copyCart
+    };
+    window.savedListArr.unshift(newBill);
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+    // 归档完成清空购物车
+    window.cartList = [];
+    localStorage.setItem(window.getStoreKey('cart'), JSON.stringify(window.cartList));
+    window.renderCart();
+    window.calcTotal();
+    window.splitClassifiedBills();
+    window.filterSavedBill();
+    alert('月度账单归档完成！购物车已清空，可新建下个月预算');
 }
 
-// 修改账单还原购物车
+window.changeGoodCheck = function(listId, goodIndex, val){
+    let targetList = window.savedListArr.find(l=>l.listId === listId);
+    targetList.detail[goodIndex].checked = val;
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+}
+
+window.changeGoodRemark = function(listId, goodIndex, input){
+    let targetList = window.savedListArr.find(l=>l.listId === listId);
+    targetList.detail[goodIndex].remark = input.value;
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+}
+
+// 修改账单：还原到购物车
 window.editBill = function(listId){
     let targetList = window.savedListArr.find(l=>l.listId === listId);
     if(!targetList) return;
-    if(!confirm('确定将该账单还原到购物车，覆盖当前购物车内容？')) return;
+    if(!confirm('确定将账单还原到购物车覆盖现有内容？')) return;
     window.cartList = JSON.parse(JSON.stringify(targetList.detail));
-    window.saveCart();
+    localStorage.setItem(window.getStoreKey('cart'), JSON.stringify(window.cartList));
     window.renderCart();
     window.calcTotal();
-    alert('账单已还原到购物车，可修改后重新保存');
+    alert('账单已还原到购物车，可修改后重新保存/归档');
 }
 
-// 打开改名弹窗
 window.openRenameModal = function(listId){
     let target = window.savedListArr.find(l=>l.listId === listId);
     document.getElementById('renameListId').value = listId;
@@ -396,27 +998,33 @@ window.openRenameModal = function(listId){
 window.closeRenameModal = function(){
     document.getElementById('renameListModal').style.display = 'none';
 }
-// 保存清单改名
 window.saveRenameList = function(){
     let listId = Number(document.getElementById('renameListId').value);
     let newName = document.getElementById('newListName').value.trim();
     if(!newName) return alert('名称不能为空');
     let idx = window.savedListArr.findIndex(l=>l.listId === listId);
     window.savedListArr[idx].listName = newName;
-    localStorage.setItem('savedWishList',JSON.stringify(window.savedListArr));
-    window.renderSavedList();
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+    window.splitClassifiedBills();
+    window.filterSavedBill();
     window.closeRenameModal();
 }
 
-// 删除归档清单
 window.deleteSavedList = function(listId){
-    if(!confirm('确定删除这条归档清单？')) return;
+    if(!confirm('确定删除这条账单？')) return;
     window.savedListArr = window.savedListArr.filter(l=>l.listId !== listId);
-    localStorage.setItem('savedWishList',JSON.stringify(window.savedListArr));
-    window.renderSavedList();
+    // 同步从所有文件夹移除
+    for(let fid in window.folderBills){
+        window.folderBills[fid] = window.folderBills[fid].filter(id=>id!==listId);
+    }
+    localStorage.setItem(window.getStoreKey('savedList'), JSON.stringify(window.savedListArr));
+    localStorage.setItem(window.getStoreKey('folderBills'), JSON.stringify(window.folderBills));
+    window.splitClassifiedBills();
+    window.filterSavedBill();
 }
 
-window.onload = window.init;
+// 废弃导入导出，保留空函数防止报错
+window.importBackupFile = function(){}
 </script>
 </body>
 </html>
